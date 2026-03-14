@@ -1,0 +1,9 @@
+# 自动处理换行符
+* text=auto
+
+# BAT 文件使用 CRLF 换行符，确保 Windows 兼容
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 确保 BAT 文件以 UTF-8 编码保存（GitHub 会保留原样）
+*.bat working-tree-encoding=UTF-8
