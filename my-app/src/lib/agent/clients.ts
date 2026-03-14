@@ -425,6 +425,9 @@ export async function generateJSON<T>(
     const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (codeBlockMatch) {
       cleaned = codeBlockMatch[1].trim();
+      console.log("[generateJSON] Extracted content from code block");
+    } else {
+      console.log("[generateJSON] No code block found, using raw content");
     }
     
     // 如果没有代码块，尝试从文本中提取 JSON
@@ -530,8 +533,12 @@ export async function generateJSON<T>(
   } catch (error) {
     console.error("JSON parse error:", error);
     console.error("Raw content preview:", result.content.substring(0, 1000));
-    console.error("Cleaned content preview:", result.content.substring(0, 1000));
-    throw new Error("Failed to parse JSON response");
+    console.error("Cleaned content preview:", cleaned.substring(0, 1000));
+    console.error("Content length:", result.content.length);
+    console.error("Cleaned length:", cleaned.length);
+    console.error("Starts with bracket:", cleaned.startsWith('['));
+    console.error("Ends with bracket:", cleaned.endsWith(']'));
+    throw new Error(`Failed to parse JSON response: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
