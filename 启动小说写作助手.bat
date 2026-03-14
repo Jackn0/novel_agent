@@ -1,59 +1,59 @@
 ﻿@echo off
 chcp 65001 >nul
-title 灏忚 AI 鍐欎綔鍔╂墜
+title 小说 AI 写作助手
 
 echo ==========================================
-echo     灏忚 AI 鍐欎綔鍔╂墜 - 鍚姩绋嬪簭
+echo     小说 AI 写作助手 - 启动程序
 echo ==========================================
 echo.
 
-:: 妫€鏌?Node.js 鏄惁瀹夎
+:: 检查 Node.js 是否安装
 node --version >nul 2>&1
 if errorlevel 1 (
-    echo [閿欒] 鏈娴嬪埌 Node.js锛岃鍏堝畨瑁?Node.js
-    echo 涓嬭浇鍦板潃: https://nodejs.org/
+    echo [错误] 未检测到 Node.js，请先安装 Node.js
+    echo 下载地址: https://nodejs.org/
     echo.
     pause
     exit /b 1
 )
 
-echo [1/3] 妫€娴嬪埌 Node.js 鐗堟湰:
+echo [1/3] 检测到 Node.js 版本:
 node --version
 echo.
 
-:: 杩涘叆椤圭洰鐩綍
+:: 进入项目目录
 cd /d "%~dp0my-app"
 
-:: 妫€鏌?node_modules 鏄惁瀛樺湪
+:: 检查 node_modules 是否存在
 if not exist "node_modules" (
-    echo [2/3] 棣栨鍚姩锛屾鍦ㄥ畨瑁呬緷璧?..
-    echo 杩欏彲鑳介渶瑕佸嚑鍒嗛挓鏃堕棿锛岃鑰愬績绛夊緟...
+    echo [2/3] 首次启动，正在安装依赖...
+    echo 这可能需要几分钟时间，请耐心等待...
     echo.
     call npm install
     if errorlevel 1 (
-        echo [閿欒] 渚濊禆瀹夎澶辫触
+        echo [错误] 依赖安装失败
         pause
         exit /b 1
     )
 ) else (
-    echo [2/3] 渚濊禆宸插畨瑁?
+    echo [2/3] 依赖已安装
 )
 
 echo.
-echo [3/3] 鍚姩寮€鍙戞湇鍔″櫒...
+echo [3/3] 启动开发服务器...
 echo.
 echo ==========================================
-echo     鏈嶅姟鍚姩鍚庯紝璇峰湪娴忚鍣ㄨ闂?
+echo     服务启动后，请在浏览器访问:
 echo     http://localhost:3000
 echo ==========================================
 echo.
-echo 鎸?Ctrl+C 鍙互鍋滄鏈嶅姟鍣?
+echo 按 Ctrl+C 可以停止服务器
 echo.
 
-:: 鍚姩 Next.js 寮€鍙戞湇鍔″櫒
+:: 启动 Next.js 开发服务器
 call npm run dev
 
-:: 濡傛灉鏈嶅姟鍣ㄦ剰澶栭€€鍑?
+:: 如果服务器意外退出
 echo.
-echo 鏈嶅姟鍣ㄥ凡鍋滄
+echo 服务器已停止
 pause
