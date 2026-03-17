@@ -42,6 +42,11 @@ export interface NovelProject {
   continuation?: ContinuationContext;  // 续写上下文
   projectType: "original" | "continuation";  // 项目类型：原创/续写
   sourceMaterial?: SourceMaterial;  // 续写项目的源材料信息
+  
+  // 有声小说相关
+  voiceConfig?: ProjectVoiceConfig;           // 语音配置
+  audioTasks?: AudioGenerationTask[];         // 音频生成任务历史
+  discoveredCharacters?: DiscoveredCharacter[]; // 发现的人物列表（自动收集）
 }
 
 // ==================== 续写功能 ====================
@@ -404,4 +409,117 @@ export interface SectionWritingContext {
   bible: NovelBible;
   chapter: Chapter;
   writingStyleSample?: string;
+}
+
+// ==================== 有声小说功能 ====================
+
+/**
+ * 支持的TTS服务商
+ */
+export type TTSService = 
+  | "elevenlabs" 
+  | "openai" 
+  | "aliyun" 
+  | "baidu" 
+  | "tencent" 
+  | "edge";
+
+/**
+ * 音色选项
+ */
+export interface VoiceOption {
+  id: string;
+  name: string;
+  gender: "male" | "female" | "neutral";
+  language: string[];
+  description?: string;
+  previewUrl?: string;
+}
+
+/**
+ * 角色声音配置
+ */
+export interface CharacterVoice {
+  characterId: string;           // 角色ID，"narrator"表示旁白
+  characterName: string;         // 角色名称显示
+  characterType: "narrator" | "hero" | "heroine" | "supporting" | "villain" | "other";
+  
+  // TTS配置
+  service: TTSService;           // 使用的TTS服务
+  voiceId: string;               // 音色ID（各服务商定义）
+  
+  // 声音参数
+  speed?: number;                // 语速: 0.5-2.0 (默认1.0)
+  pitch?: number;                // 音调: -10 to 10 (默认0)
+  volume?: number;               // 音量: 0-100 (默认100)
+  
+  // 情感/风格（服务商支持）
+  emotion?: string;              // 情感: calm, excited, sad, angry等
+  style?: string;                // 风格描述
+}
+
+/**
+ * 项目语音配置
+ */
+export interface ProjectVoiceConfig {
+  maxCharacters: number;         // 最大角色数 (5-15，默认10)
+  characters: CharacterVoice[];  // 角色声音配置列表
+  defaultService: TTSService;    // 默认TTS服务
+  pauseBetweenLines: number;     // 段落间隔(ms，默认500)
+}
+
+/**
+ * 发现的人物（写作阶段自动收集）
+ */
+export interface DiscoveredCharacter {
+  id: string;
+  name: string;
+  firstAppearChapter?: number;
+  firstAppearSection?: number;
+  mentionCount: number;
+}
+
+/**
+ * 解析后的音频段落
+ */
+export interface ParsedAudioSegment {
+  id: string;
+  order: number;                 // 顺序
+  characterId: string;           // 角色ID
+  characterName: string;         // 角色名称
+  type: "narration" | "dialogue"; // 旁白或对话
+  text: string;                  // 原文
+  processedText: string;         // 处理后文本（用于TTS）
+}
+
+/**
+ * 音频生成任务
+ */
+export interface AudioGenerationTask {
+  id: string;
+  projectId: string;
+  chapterId: string;
+  sectionId: string;
+  
+  // 输入
+  parsedSegments: ParsedAudioSegment[];
+  
+  // 输出
+  segmentAudioFiles: {          // 各段落音频文件
+    segmentId: string;
+    audioUrl: string;
+    duration: number;
+  }[];
+  
+  // 合并后
+  mergedAudioUrl?: string;      // 合并后的完整音频
+  totalDuration?: number;       // 总时长(秒)
+  
+  // 状态
+  status: "pending" | "parsing" | "generating" | "merging" | "completed" | "failed";
+  progress: number;             // 0-100
+  error?: string;
+  
+  createdAt: string;
+  updatedAt: string;
 }

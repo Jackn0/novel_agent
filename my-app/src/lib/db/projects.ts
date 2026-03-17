@@ -96,6 +96,9 @@ export async function createProject(
       inputFiles: [],
     },
     projectType,
+    // 有声小说相关字段初始化
+    discoveredCharacters: [],
+    audioTasks: [],
   };
 
   await fs.writeFile(
@@ -167,6 +170,13 @@ export async function getProject(projectId: string): Promise<NovelProject | null
     if (!project.projectType) {
       project.projectType = "original";
     }
+    // 向后兼容：确保有声小说相关字段存在
+    if (!project.discoveredCharacters) {
+      project.discoveredCharacters = [];
+    }
+    if (!project.audioTasks) {
+      project.audioTasks = [];
+    }
     return project;
   } catch {
     return null;
@@ -203,6 +213,13 @@ export async function listProjects(): Promise<NovelProject[]> {
           // 向后兼容：确保 projectType 字段存在
           if (!project.projectType) {
             project.projectType = "original";
+          }
+          // 向后兼容：确保有声小说相关字段存在
+          if (!project.discoveredCharacters) {
+            project.discoveredCharacters = [];
+          }
+          if (!project.audioTasks) {
+            project.audioTasks = [];
           }
           projects.push(project);
         } catch {

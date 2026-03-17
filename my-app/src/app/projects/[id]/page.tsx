@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { 
   BookOpen, Users, Shield, MapPin, Zap, 
   FileText, List, PenTool, CheckCircle,
-  ChevronLeft, Settings, X
+  ChevronLeft, Settings, X, Headphones, Mic, Volume2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -58,6 +58,7 @@ import WritingStage from "@/components/stages/WritingStage";
 import ContinuationInputStage from "@/components/stages/ContinuationInputStage";
 import ContinuationAnalysisStage from "@/components/stages/ContinuationAnalysisStage";
 import ContinuationBibleStage from "@/components/stages/ContinuationBibleStage";
+import VoiceConfigPanel from "@/components/audio-book/VoiceConfigPanel";
 import ContinuationOutlineStage from "@/components/stages/ContinuationOutlineStage";
 import ContinuationChapterStage from "@/components/stages/ContinuationChapterStage";
 import ContinuationWritingStage from "@/components/stages/ContinuationWritingStage";
@@ -169,6 +170,10 @@ export default function ProjectPage() {
   const [showRestartDialog, setShowRestartDialog] = useState(false);
   const [restartLoading, setRestartLoading] = useState(false);
 
+  // 有声小说相关状态
+  const [activeView, setActiveView] = useState<"writing" | "audio-book">("writing");
+  const [audioBookSubView, setAudioBookSubView] = useState<"config" | "generate">("config");
+
   // 加载 .env.local 设置
   async function loadEnvSettings() {
     try {
@@ -230,6 +235,45 @@ export default function ProjectPage() {
   // 渲染当前阶段的内容
   function renderStageContent() {
     if (!project) return null;
+
+    // 有声小说视图
+    if (activeView === "audio-book") {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Headphones className="w-6 h-6 text-purple-600" />
+                有声小说制作
+              </h1>
+              <p className="text-gray-600 mt-1">
+                {audioBookSubView === "config" 
+                  ? "配置角色音色，为有声小说做准备" 
+                  : "生成和管理音频文件"}
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => setActiveView("writing")}
+            >
+              返回写作
+            </Button>
+          </div>
+          
+          {audioBookSubView === "config" ? (
+            <VoiceConfigPanel project={project} onUpdate={updateProject} />
+          ) : (
+            <div className="bg-white rounded-lg border p-6">
+              <h2 className="text-lg font-semibold mb-4">音频生成管理</h2>
+              <p className="text-gray-500">此功能正在开发中...</p>
+              <p className="text-sm text-gray-400 mt-2">
+                选择章节和小节，批量生成音频文件
+              </p>
+            </div>
+          )}
+        </div>
+      );
+    }
 
     switch (project.currentStage) {
       case "bible_meta":
@@ -421,6 +465,47 @@ export default function ProjectPage() {
             })}
           </div>
         </ScrollArea>
+
+        {/* 有声小说入口 - 仅在写作阶段后显示 */}
+        {isStageCompleted(stages.findIndex(s => s.id === "writing")) && (
+          <div className="p-4 border-t">
+            <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              有声小说
+            </div>
+            <button
+              onClick={() => { setActiveView("audio-book"); setAudioBookSubView("config"); }}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors mt-1
+                ${activeView === "audio-book" && audioBookSubView === "config"
+                  ? "bg-purple-50 text-purple-700 font-medium" 
+                  : "text-gray-700 hover:bg-gray-50"
+                }
+              `}
+            >
+              <Mic className="w-4 h-4" />
+              <span className="flex-1 text-left">语音配置</span>
+            </button>
+            <button
+              onClick={() => { setActiveView("audio-book"); setAudioBookSubView("generate"); }}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors mt-1
+                ${activeView === "audio-book" && audioBookSubView === "generate"
+                  ? "bg-purple-50 text-purple-700 font-medium" 
+                  : "text-gray-700 hover:bg-gray-50"
+                }
+              `}
+            >
+              <Volume2 className="w-4 h-4" />
+              <span className="flex-1 text-left">生成管理</span>
+              {/* 如果有已生成的音频，显示数量徽章 */}
+              {project.audioTasks && project.audioTasks.filter(t => t.status === "completed").length > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {project.audioTasks.filter(t => t.status === "completed").length}
+                </Badge>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* 底部设置 */}
         <div className="p-4 border-t">
