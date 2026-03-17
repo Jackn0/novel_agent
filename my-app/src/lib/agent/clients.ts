@@ -418,8 +418,10 @@ export async function generateJSON<T>(
     maxTokens,
   });
 
+  // 提前声明 cleaned 变量，确保 catch 块可以访问
+  let cleaned = result.content.trim();
+
   try {
-    let cleaned = result.content.trim();
     
     // 提取代码块中的内容
     const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);

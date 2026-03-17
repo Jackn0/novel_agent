@@ -396,6 +396,7 @@ export interface StreamingResponse {
 export interface SectionWritingContext {
   section: Section;
   previousSectionEnding?: string;
+  previousSections?: Section[];  // 前序小节完整内容（用于Level 4+记忆）
   chapterProgress: string;
   povCharacter?: Character;
   involvedCharacters: Character[];

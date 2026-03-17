@@ -58,7 +58,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // 构建 prompts（支持续写上下文）
     const systemPrompt = buildCompleteSystemPrompt(project, "section_lists", memoryLevel);
-    const userPrompt = buildSectionListUserPrompt(project, chapter, continuationContext || undefined);
+    const userPrompt = buildSectionListUserPrompt(project, chapter, memoryLevel, continuationContext || undefined);
 
     // 获取设定模型和 maxTokens（环境变量优先）
     const settingModel = process.env.SETTING_MODEL || project.settings.settingModel || "gpt-4-turbo";

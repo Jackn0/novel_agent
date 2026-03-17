@@ -75,6 +75,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...updates.continuation,
       };
     }
+    
+    if (updates.settings !== undefined) {
+      allowedUpdates.settings = {
+        ...project.settings,
+        ...updates.settings,
+      };
+    }
 
     const updatedProject = await updateProject(id, allowedUpdates);
 

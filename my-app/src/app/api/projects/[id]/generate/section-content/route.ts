@@ -79,6 +79,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       (i: NovelInstance) => i.name === section.sceneLocation || i.id === section.sceneLocation
     );
 
+    // 获取记忆等级
+    const memoryLevel = (project.settings.memoryLevel ?? parseInt(process.env.MEMORY_LEVEL || "3")) as 1 | 2 | 3 | 4 | 5;
+
+    // 根据记忆等级获取前序小节内容（Level 4+ 需要）
+    let previousSections: Section[] | undefined;
+    if (memoryLevel >= 4 && chapter.sections) {
+      const currentIndex = chapter.sections.findIndex((s: Section) => s.id === sectionId);
+      if (currentIndex > 0) {
+        // 获取当前小节之前的所有小节
+        previousSections = chapter.sections.slice(0, currentIndex);
+      }
+    }
+
     // 构建上下文
     const context = {
       section,
@@ -86,16 +99,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       bible: project.bible,
       writingStyleSample: project.bible.meta.writingStyleSample,
       previousSectionEnding,
+      previousSections,  // Level 4+ 会包含前序小节完整内容
       involvedCharacters,
       location,
       chapterProgress: `第 ${section.sectionNumber} / ${chapter.sections?.length || 1} 节`,
       povCharacter: involvedCharacters[0],
     };
 
-    // 获取记忆等级（优先从项目设置，然后回退到 .env.local）
-    const memoryLevel = (project.settings.memoryLevel ?? parseInt(process.env.MEMORY_LEVEL || "3")) as 1 | 2 | 3 | 4 | 5;
-    
-    // 构建 prompts
+    // 构建 prompts（memoryLevel 已在上面获取）
     const systemPrompt = buildCompleteSystemPrompt(project, "writing", memoryLevel);
     const userPrompt = buildSectionContentUserPrompt(context, memoryLevel, project);
 

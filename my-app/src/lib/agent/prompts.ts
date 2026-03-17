@@ -306,17 +306,19 @@ ${previousSummary ? `【前情提要】\n${previousSummary}\n` : ""}
 
 /**
  * 构建小节列表生成的 User Prompt
+ * 根据记忆等级注入不同详细程度的上下文
  */
 export function buildSectionListUserPrompt(
   project: NovelProject,
   chapter: Chapter,
+  memoryLevel: MemoryLevel = 3,
   continuationContext?: {
     characters: unknown[];
     instances: unknown[];
     worldSettings?: Record<string, unknown>;
   }
 ): string {
-  const { bible } = project;
+  const { bible, outline, settings } = project;
   
   // 计算小节数量（每小节约 800-1200 字）
   const sectionCount = Math.ceil(chapter.wordCountTarget / 1000);
@@ -331,15 +333,55 @@ ${continuationContext.characters.map((c) => {
 }).join("\n")}` : ""}
 ${continuationContext.worldSettings ? `世界设定：${JSON.stringify(continuationContext.worldSettings).substring(0, 300)}...` : ""}
 ` : "";
-  
-  return `请为第 ${chapter.chapterNumber} 章"${chapter.title}"生成详细的小节列表。
 
-【小说预设 - 核心设定】
+  // 根据记忆等级构建圣经注入内容
+  let bibleSection = "";
+  if (memoryLevel >= 3) {
+    bibleSection = `【小说预设 - 完整设定】
+${buildFullBible(bible)}`;
+  } else if (memoryLevel === 2) {
+    bibleSection = `【小说预设 - 核心设定】
+${buildMediumBible(bible)}`;
+  } else {
+    bibleSection = `【小说预设 - 精简设定】
 标题：${bible.meta.title}
 题材：${bible.meta.genre}
 基调：${bible.meta.tone}
-简介：${bible.meta.synopsis}
+简介：${bible.meta.synopsis}`;
+  }
+
+  // 根据记忆等级构建大纲注入内容
+  let outlineSection = "";
+  if (outline) {
+    if (memoryLevel >= 4) {
+      // Level 4+: 完整大纲+卷详情
+      const currentVolume = outline.volumes.find(v => v.number === chapter.volumeNumber);
+      outlineSection = `【大纲规划 - 完整】
+故事主线：${outline.mainArc?.substring(0, 500)}...
+
+本卷规划：
+${currentVolume ? `第 ${currentVolume.number} 卷《${currentVolume.title}》：${currentVolume.summary}
+核心事件：${currentVolume.coreEvent}` : "暂无卷信息"}
+
+${memoryLevel >= 5 ? `前卷概要：
+${outline.volumes.filter(v => v.number < chapter.volumeNumber).map(v => `第 ${v.number} 卷《${v.title}》：${v.coreEvent}`).join("\n")}` : ""}`;
+    } else if (memoryLevel === 3) {
+      // Level 3: 主线+卷概览
+      outlineSection = `【大纲规划 - 主线与卷概览】
+故事主线概要：${outline.mainArc?.substring(0, 300)}...
+
+各卷概览：
+${outline.volumes.map(v => `第 ${v.number} 卷《${v.title}》：${v.summary?.substring(0, 100)}...`).join("\n")}`;
+    }
+    // Level 1-2: 仅当前卷信息（在【本卷信息】部分已包含）
+  }
+  
+  return `请为第 ${chapter.chapterNumber} 章"${chapter.title}"生成详细的小节列表。
+
+${bibleSection}
 ${continuationSection}
+${outlineSection}
+
 【本卷信息】
 ${project.outline?.volumes.find(v => v.number === chapter.volumeNumber) 
   ? `第 ${chapter.volumeNumber} 卷：${project.outline.volumes.find(v => v.number === chapter.volumeNumber)?.title}
@@ -427,33 +469,46 @@ ${buildMinimalBible(bible, relevantCharacterIds)}
 `;
   }
 
-  // Level 4+: 注入大纲规划内容
-  if (memoryLevel >= 4 && project?.outline) {
-    prompt += `
-【大纲规划】
-故事主线：${project.outline.mainArc?.substring(0, 500)}...
+  // 根据记忆等级注入大纲规划内容
+  if (project?.outline) {
+    if (memoryLevel >= 4) {
+      // Level 4+: 完整大纲+卷详情
+      prompt += `
+【大纲规划 - 完整】
+故事主线：${project.outline.mainArc}
 
 本卷规划：
 `;
-    const currentVolume = project.outline.volumes.find(v => v.number === chapter.volumeNumber);
-    if (currentVolume) {
-      prompt += `第 ${currentVolume.number} 卷《${currentVolume.title}》：${currentVolume.summary}
+      const currentVolume = project.outline.volumes.find(v => v.number === chapter.volumeNumber);
+      if (currentVolume) {
+        prompt += `第 ${currentVolume.number} 卷《${currentVolume.title}》：${currentVolume.summary}
 核心事件：${currentVolume.coreEvent}
 `;
-    }
-    
-    // Level 5: 注入前卷摘要
-    if (memoryLevel >= 5) {
-      const previousVolumes = project.outline.volumes.filter(v => v.number < chapter.volumeNumber);
-      if (previousVolumes.length > 0) {
-        prompt += `
+      }
+      
+      // Level 5: 注入前卷摘要
+      if (memoryLevel >= 5) {
+        const previousVolumes = project.outline.volumes.filter(v => v.number < chapter.volumeNumber);
+        if (previousVolumes.length > 0) {
+          prompt += `
 前卷概要：
 ${previousVolumes.map(v => `第 ${v.number} 卷《${v.title}》：${v.coreEvent}`).join("\n")}
 `;
+        }
       }
-    }
-    prompt += `
+      prompt += `
 `;
+    } else if (memoryLevel === 3) {
+      // Level 3: 主线+卷概览
+      prompt += `
+【大纲规划 - 主线与卷概览】
+故事主线概要：${project.outline.mainArc?.substring(0, 300)}...
+
+各卷概览：
+${project.outline.volumes.map(v => `第 ${v.number} 卷《${v.title}》：${v.summary?.substring(0, 100)}...`).join("\n")}
+`;
+    }
+    // Level 1-2: 仅当前卷信息（在【本章大纲】部分已包含）
   }
 
   prompt += `
@@ -473,22 +528,58 @@ ${chapter.keyEvents.map(e => `- ${e.description}`).join("\n")}
 
 `;
 
-  // 添加上一节结尾（Level 2+）
+  // 添加上一节结尾和前序小节信息（根据记忆等级）
   if (memoryLevel >= 2 && context.previousSectionEnding) {
     prompt += `【上一节结尾】\n${context.previousSectionEnding}\n\n`;
   }
 
-  // Level 3+: 添加所有人物信息
-  if (memoryLevel >= 3 && bible.characters.length > 0) {
-    prompt += `【人物设定 - 完整】\n`;
+  // Level 4+: 注入前序小节完整内容
+  if (memoryLevel >= 4 && context.previousSections && context.previousSections.length > 0) {
+    const sectionsToInclude = memoryLevel >= 5 ? 5 : 3; // Level 5: 前5节, Level 4: 前3节
+    const previousSections = context.previousSections.slice(-sectionsToInclude);
+    
+    prompt += `【前序小节内容 - 最近${previousSections.length}节】\n`;
+    previousSections.forEach((prevSection, index) => {
+      const actualIndex = context.previousSections!.length - previousSections.length + index + 1;
+      prompt += `--- 第 ${actualIndex} 节：${prevSection.title || "未命名"} ---\n`;
+      if (prevSection.content) {
+        // 只取前500字避免过长
+        const contentPreview = prevSection.content.substring(0, 500);
+        prompt += `${contentPreview}${prevSection.content.length > 500 ? "..." : ""}\n\n`;
+      } else {
+        prompt += `（内容概要：${prevSection.contentSummary || "暂无"}）\n\n`;
+      }
+    });
+  }
+
+  // 根据记忆等级添加人物信息
+  if (memoryLevel >= 4 && bible.characters.length > 0) {
+    // Level 4+: 全部人物 + 当前状态
+    prompt += `【人物设定 - 全部人物+当前状态】\n`;
     for (const char of bible.characters) {
       const roleText = char.role === "protagonist" ? "【主角】" : char.role === "antagonist" ? "【反派】" : char.role === "supporting" ? "【配角】" : "";
-      prompt += `${char.name}${roleText}：${char.appearance?.substring(0, 100) || ""} ${char.personality?.substring(0, 100) || ""}\n`;
+      const stateText = char.currentState ? ` [当前状态：${char.currentState}]` : "";
+      prompt += `${char.name}${roleText}${stateText}：${char.appearance?.substring(0, 100) || ""} ${char.personality?.substring(0, 100) || ""}\n`;
     }
     prompt += `\n`;
-  }
-  // Level 1-2: 仅添加相关人物
-  else if (memoryLevel < 3 && context.involvedCharacters.length > 0) {
+  } else if (memoryLevel === 3 && bible.characters.length > 0) {
+    // Level 3: 主要人物（主角、反派、涉及人物）+ 状态
+    prompt += `【人物设定 - 主要人物+状态】\n`;
+    // 主角和反派
+    const mainCharacters = bible.characters.filter(c => c.role === "protagonist" || c.role === "antagonist");
+    // 涉及的重要配角（前2个）
+    const involvedSupporting = context.involvedCharacters
+      .filter(c => c.role === "supporting")
+      .slice(0, 2);
+    
+    for (const char of [...mainCharacters, ...involvedSupporting]) {
+      const roleText = char.role === "protagonist" ? "【主角】" : char.role === "antagonist" ? "【反派】" : "【配角】";
+      const stateText = char.currentState ? ` [状态：${char.currentState}]` : "";
+      prompt += `${char.name}${roleText}${stateText}：${char.personality?.substring(0, 100) || ""}\n`;
+    }
+    prompt += `\n`;
+  } else if (memoryLevel < 3 && context.involvedCharacters.length > 0) {
+    // Level 1-2: 仅当前章节涉及人物
     prompt += `【本节涉及人物】\n`;
     for (const char of context.involvedCharacters) {
       prompt += `${char.name}：${char.personality?.substring(0, 100) || ""}\n`;
@@ -501,17 +592,34 @@ ${chapter.keyEvents.map(e => `- ${e.description}`).join("\n")}
     prompt += `【地点信息】\n${context.location.name}：${context.location.features}\n\n`;
   }
 
-  // Level 5: 添加伏笔追踪
-  if (memoryLevel >= 5 && project?.foreshadowings && project.foreshadowings.length > 0) {
-    const relevantForeshadowings = project.foreshadowings.filter(f => 
-      f.status === "planted" || 
-      (f.plantedInChapter && f.plantedInChapter <= chapter.chapterNumber)
-    );
+  // 伏笔追踪（Level 4+）
+  if (memoryLevel >= 4 && project?.foreshadowings && project.foreshadowings.length > 0) {
+    const relevantForeshadowings = project.foreshadowings.filter(f => {
+      // 只包含已埋下且未回收的伏笔，或在本章之前埋下的伏笔
+      if (f.status === "resolved") return false;
+      if (f.status === "planted" && f.plantedInChapter) {
+        return f.plantedInChapter <= chapter.chapterNumber;
+      }
+      return true;
+    });
+    
     if (relevantForeshadowings.length > 0) {
-      prompt += `【伏笔提醒】
-${relevantForeshadowings.map(f => `- ${f.content}（状态：${f.status}）`).join("\n")}
+      if (memoryLevel >= 5) {
+        // Level 5: 完整伏笔数据库
+        prompt += `【伏笔追踪 - 完整数据库】
+${relevantForeshadowings.map(f => `- ${f.content}（第${f.plantedInChapter}章埋下，状态：${f.status}，重要度：${f.importance}）`).join("\n")}
 
 `;
+      } else {
+        // Level 4: 相关伏笔提醒
+        const criticalAndMajor = relevantForeshadowings.filter(f => f.importance !== "minor");
+        if (criticalAndMajor.length > 0) {
+          prompt += `【伏笔提醒 - 重要伏笔】
+${criticalAndMajor.map(f => `- ${f.content}（状态：${f.status}）`).join("\n")}
+
+`;
+        }
+      }
     }
   }
 
