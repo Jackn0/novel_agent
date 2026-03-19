@@ -3,7 +3,7 @@
 > **AI 驱动的小说创作全流程解决方案**  
 > 从世界观设定 → 正文写作 → 有声书制作，一站式完成
 
-[![GitHub stars](https://img.shields.io/github/stars/Jackno/Novel-AI-Agent?style=social)](https://github.com/Jackn0/novel_agent/tree/main)
+[![GitHub stars](https://img.shields.io/github/stars/Jackno/Novel-AI-Agent?style=social)](https://github.com/Jackn0/novel_agent)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 
