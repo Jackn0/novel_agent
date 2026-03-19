@@ -16,13 +16,13 @@ interface RouteParams {
 function getEnabledTTSServices(): TTSService[] {
   const services: TTSService[] = [];
   
-  if (process.env.ELEVENLABS_API_KEY) services.push("elevenlabs");
-  if (process.env.OPENAI_TTS_API_KEY || process.env.OPENAI_API_KEY) services.push("openai");
-  if (process.env.ALIYUN_ACCESS_KEY_ID) services.push("aliyun");
-  if (process.env.BAIDU_TTS_API_KEY) services.push("baidu");
-  if (process.env.TENCENT_SECRET_ID) services.push("tencent");
   // Edge TTS 不需要 API Key，默认启用
   services.push("edge");
+  
+  // 百度 TTS（需要配置 API Key）
+  if (process.env.BAIDU_TTS_API_KEY && process.env.BAIDU_TTS_SECRET_KEY) {
+    services.push("baidu");
+  }
   
   return services;
 }

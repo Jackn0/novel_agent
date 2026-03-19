@@ -70,6 +70,9 @@ export class EdgeTTSProvider implements TTSProvider {
 
   async synthesize(options: SynthesizeOptions): Promise<SynthesizeResult> {
     const { text, voiceId, speed = 1.0, outputFile } = options;
+    
+    console.log(`[EdgeTTS] Synthesizing: voice=${voiceId}, speed=${speed}, textLength=${text.length}`);
+    console.log(`[EdgeTTS] Output: ${outputFile}`);
 
     // 确保输出目录存在
     await fs.mkdir(path.dirname(outputFile), { recursive: true });
@@ -86,8 +89,10 @@ export class EdgeTTSProvider implements TTSProvider {
         "--rate", rateStr,
         "--write-media", outputFile,
       ];
+      
+      console.log(`[EdgeTTS] Command: python -m edge_tts ${args.join(" ")}`);
 
-      const process = spawn("edge-tts", args);
+      const process = spawn("python", ["-m", "edge_tts", ...args]);
 
       let stderr = "";
       process.stderr?.on("data", (data) => {
@@ -101,24 +106,30 @@ export class EdgeTTSProvider implements TTSProvider {
             // Edge TTS 不直接返回时长，我们估算：中文大约每秒4-5个字
             const duration = text.length / 4.5;
             
+            console.log(`[EdgeTTS] Success: ${outputFile}, size=${stats.size}, duration=${duration.toFixed(2)}s`);
+            
             resolve({
               filePath: outputFile,
               duration,
               fileSize: stats.size,
             });
           } catch (error) {
+            console.error(`[EdgeTTS] Failed to read output file:`, error);
             reject(new Error(`无法读取生成的音频文件: ${error}`));
           }
         } else {
+          console.error(`[EdgeTTS] Failed with code ${code}: ${stderr}`);
           reject(new Error(`edge-tts 失败 (code ${code}): ${stderr}`));
         }
       });
 
       process.on("error", (error) => {
+        console.error(`[EdgeTTS] Process error:`, error);
         if ((error as NodeJS.ErrnoException).code === "ENOENT") {
           reject(new Error(
-            "未找到 edge-tts 命令。请安装: pip install edge-tts\n" +
-            "并确保Python Scripts目录在PATH中。"
+            "未找到 Python 或 edge-tts 模块。请检查:\n" +
+            "1. Python 是否已安装: python --version\n" +
+            "2. edge-tts 是否已安装: pip install edge-tts"
           ));
         } else {
           reject(error);

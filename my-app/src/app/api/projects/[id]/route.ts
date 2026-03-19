@@ -82,6 +82,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...updates.settings,
       };
     }
+    
+    // 有声小说特有字段
+    if (updates.audiobookSegments !== undefined) {
+      allowedUpdates.audiobookSegments = updates.audiobookSegments;
+    }
+    
+    if (updates.voiceConfig !== undefined) {
+      allowedUpdates.voiceConfig = updates.voiceConfig;
+    }
+    
+    if (updates.multiRoleConfig !== undefined) {
+      allowedUpdates.multiRoleConfig = updates.multiRoleConfig;
+    }
 
     const updatedProject = await updateProject(id, allowedUpdates);
 

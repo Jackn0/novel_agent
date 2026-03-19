@@ -83,10 +83,11 @@ async function handleSingleGenerate(
   }
 
   // 构建输出路径
+  const safeTitle = project.title.replace(/[\\/:*?"<>|]/g, '').trim() || '未命名';
   const outputDir = path.join(
     process.cwd(),
     "output",
-    `有声小说-${project.title}`,
+    `有声小说-${safeTitle}`,
     "segments"
   );
   const outputFile = path.join(outputDir, outputFileName);
@@ -106,11 +107,17 @@ async function handleSingleGenerate(
       outputFile,
     });
 
+    // 将绝对路径转为相对路径（用于 URL），并统一使用正斜杠
+    const relativePath = result.filePath
+      .replace(process.cwd(), "")
+      .replace(/\\/g, "/")
+      .replace(/^\//, "");
+    
     return NextResponse.json({
       success: true,
       data: {
         segmentId: segment.id,
-        audioUrl: result.filePath.replace(process.cwd(), ""),
+        audioUrl: relativePath,
         duration: result.duration,
         fileSize: result.fileSize,
       },
@@ -135,13 +142,21 @@ async function handleBatchGenerate(
   request: BatchAudioRequest
 ) {
   const { sectionId, segments } = request;
+  
+  // 安全处理小说名称
+  const safeTitle = project.title.replace(/[\\/:*?"<>|]/g, '').trim() || '未命名';
+
+  console.log(`[Audio Generate] Starting batch generation for section ${sectionId}, segments: ${segments.length}`);
 
   if (!project.voiceConfig) {
+    console.error("[Audio Generate] No voice config found");
     return NextResponse.json(
       { success: false, error: "请先配置语音人物" },
       { status: 400 }
     );
   }
+
+  console.log(`[Audio Generate] Voice config characters: ${project.voiceConfig.characters?.length}`);
 
   const results: Array<{
     segmentId: string;
@@ -154,6 +169,7 @@ async function handleBatchGenerate(
   // 串行生成（避免API限流）
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
+    console.log(`[Audio Generate] Processing segment ${i + 1}/${segments.length}: ${segment.characterId} - ${segment.characterName}`);
     
     // 查找对应的语音配置
     const voiceConfig = project.voiceConfig?.characters?.find(
@@ -161,13 +177,16 @@ async function handleBatchGenerate(
     );
 
     if (!voiceConfig) {
+      console.error(`[Audio Generate] Voice config not found for character: ${segment.characterId}`);
       results.push({
         segmentId: segment.id,
         success: false,
-        error: `未找到角色 ${segment.characterId} 的语音配置`,
+        error: `未找到角色 ${segment.characterId} (${segment.characterName}) 的语音配置`,
       });
       continue;
     }
+    
+    console.log(`[Audio Generate] Using voice: ${voiceConfig.voiceId} (${voiceConfig.service})`);
 
     const provider = getTTSProvider(voiceConfig.service);
     if (!provider || !provider.isConfigured()) {
@@ -183,7 +202,7 @@ async function handleBatchGenerate(
     const outputDir = path.join(
       process.cwd(),
       "output",
-      `有声小说-${project.title}`,
+      `有声小说-${safeTitle}`,
       "segments"
     );
     const outputFile = path.join(outputDir, outputFileName);
@@ -201,27 +220,43 @@ async function handleBatchGenerate(
         outputFile,
       });
 
+      // 将绝对路径转为相对路径（用于 URL），并统一使用正斜杠
+      const relativePath = result.filePath
+        .replace(process.cwd(), "")
+        .replace(/\\/g, "/")
+        .replace(/^\//, ""); // 移除开头的斜杠
+      
       results.push({
         segmentId: segment.id,
         success: true,
-        audioUrl: result.filePath.replace(process.cwd(), ""),
+        audioUrl: relativePath,
         duration: result.duration,
       });
 
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[Audio Generate] Failed to generate segment ${segment.id}:`, errorMsg);
       results.push({
         segmentId: segment.id,
         success: false,
-        error: error instanceof Error ? error.message : "生成失败",
+        error: errorMsg,
       });
     }
   }
 
   const successCount = results.filter(r => r.success).length;
 
+  // 如果全部失败，返回第一个错误信息
+  let errorMsg: string | undefined;
+  if (successCount === 0) {
+    const firstFailed = results.find(r => !r.success);
+    errorMsg = firstFailed?.error || "所有音频片段生成失败";
+  }
+
   return NextResponse.json({
     success: successCount > 0,
     data: results,
+    error: errorMsg,
     summary: {
       total: segments.length,
       success: successCount,

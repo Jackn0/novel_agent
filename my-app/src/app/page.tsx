@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, BookOpen, Clock, ChevronRight, Trash2, ArrowRight, FileInput, AlertTriangle, Settings } from "lucide-react";
+import { Plus, BookOpen, Clock, ChevronRight, Trash2, ArrowRight, FileInput, AlertTriangle, Settings, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -30,11 +30,18 @@ const stageLabels: Record<string, string> = {
   continuation_outline: "续写大纲",
   continuation_chapters: "章节规划",
   continuation_writing: "续写正文",
+  // 有声小说阶段
+  audiobook_content_review: "内容确认",
+  audiobook_voice_config: "语音配置",
+  audiobook_simple_generation: "简单生成",
+  audiobook_multi_role_setup: "多角色配音",
+  audiobook_chapter_dubbing: "章节配音",
 };
 
 const projectTypeLabels: Record<string, string> = {
   original: "原创",
   continuation: "续写",
+  audiobook: "有声小说",
 };
 
 const stageColors: Record<string, string> = {
@@ -48,6 +55,12 @@ const stageColors: Record<string, string> = {
   section_lists: "bg-pink-100 text-pink-800",
   writing: "bg-red-100 text-red-800",
   completed: "bg-gray-100 text-gray-800",
+  // 有声小说阶段
+  audiobook_content_review: "bg-purple-100 text-purple-800",
+  audiobook_voice_config: "bg-blue-100 text-blue-800",
+  audiobook_simple_generation: "bg-green-100 text-green-800",
+  audiobook_multi_role_setup: "bg-orange-100 text-orange-800",
+  audiobook_chapter_dubbing: "bg-pink-100 text-pink-800",
 };
 
 export default function HomePage() {
@@ -256,6 +269,13 @@ export default function HomePage() {
             >
               <FileInput className="w-4 h-4 mr-2" />
               导入续写
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => router.push("/audiobook/new")}
+            >
+              <Headphones className="w-4 h-4 mr-2" />
+              有声小说
             </Button>
             <Button onClick={() => {
               setNewProjectType("original");

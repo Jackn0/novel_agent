@@ -27,6 +27,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const body: MergeRequest = await request.json();
     const { sectionId, chapterId, segmentAudioFiles, pauseDuration } = body;
 
+    console.log(`[Audio Merge] Request: section=${sectionId}, files=${segmentAudioFiles.length}`);
+    console.log(`[Audio Merge] Input files:`, segmentAudioFiles);
+
     const project = await getProject(id);
     if (!project) {
       return NextResponse.json(
@@ -68,20 +71,23 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // 构建输出文件路径
     // 格式: output/有声小说-{小说名}/{卷号}-{章节号}-{小节号}.mp3
+    const safeTitle = project.title.replace(/[\\/:*?"<>|]/g, '').trim() || '未命名';
     const outputDir = path.join(
       process.cwd(),
       "output",
-      `有声小说-${project.title}`
+      `有声小说-${safeTitle}`
     );
     const outputFileName = `${chapter.volumeNumber}-${chapter.chapterNumberInVolume}-${section.sectionNumber}.mp3`;
     const outputFile = path.join(outputDir, outputFileName);
 
     // 转换相对路径为绝对路径
     const absoluteInputFiles = segmentAudioFiles.map(f => {
-      if (f.startsWith("/")) {
-        return path.join(process.cwd(), f);
+      // 如果已经是绝对路径（Windows 盘符或 Unix 根目录），直接使用
+      if (path.isAbsolute(f)) {
+        return f;
       }
-      return f;
+      // 否则拼接 cwd
+      return path.join(process.cwd(), f);
     });
 
     // 合并音频
@@ -112,9 +118,35 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     };
 
     // 保存任务到项目
-    const audioTasks = project.audioTasks || [];
-    audioTasks.push(task);
+    const audioTasks = [...(project.audioTasks || []), task];
     await updateProject(id, { audioTasks });
+
+    // 清理临时文件 - 删除 segments 文件夹
+    try {
+      if (absoluteInputFiles.length > 0) {
+        // 从第一个文件路径提取 segments 目录
+        const firstFile = absoluteInputFiles[0];
+        const segmentsDir = path.dirname(firstFile);
+        
+        console.log(`[Audio Merge] Cleaning up segments directory: ${segmentsDir}`);
+        
+        // 删除所有临时音频文件
+        for (const file of absoluteInputFiles) {
+          await fs.unlink(file).catch(err => {
+            console.warn(`[Audio Merge] Failed to delete temp file ${file}:`, err);
+          });
+        }
+        
+        // 尝试删除 segments 目录（如果为空）
+        await fs.rmdir(segmentsDir).catch(() => {
+          // 目录可能不为空，忽略错误
+        });
+        
+        console.log(`[Audio Merge] Cleanup completed`);
+      }
+    } catch (cleanupError) {
+      console.warn("[Audio Merge] Cleanup error (non-critical):", cleanupError);
+    }
 
     return NextResponse.json({
       success: true,

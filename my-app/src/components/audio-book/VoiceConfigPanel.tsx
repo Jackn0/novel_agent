@@ -15,12 +15,8 @@ interface VoiceConfigPanelProps {
 }
 
 const TTS_SERVICE_NAMES: Record<TTSService, string> = {
-  elevenlabs: "ElevenLabs",
-  openai: "OpenAI",
-  aliyun: "阿里云",
-  baidu: "百度智能云",
-  tencent: "腾讯云",
-  edge: "Edge TTS (免费)",
+  edge: "Edge TTS (微软免费)",
+  baidu: "百度智能云 TTS",
 };
 
 const DEFAULT_VOICES: Record<TTSService, { id: string; name: string }[]> = {
@@ -31,19 +27,18 @@ const DEFAULT_VOICES: Record<TTSService, { id: string; name: string }[]> = {
     { id: "zh-CN-XiaoyiNeural", name: "晓伊 (女声-儿童)" },
     { id: "zh-TW-HsiaoChenNeural", name: "曉臻 (台湾女声)" },
   ],
-  openai: [
-    { id: "alloy", name: "Alloy (中性)" },
-    { id: "echo", name: "Echo (男声)" },
-    { id: "fable", name: "Fable (男声)" },
-    { id: "onyx", name: "Onyx (男声)" },
-    { id: "nova", name: "Nova (女声)" },
-    { id: "shimmer", name: "Shimmer (女声)" },
+  baidu: [
+    { id: "baidu-3", name: "度逍遥 (情感男声-适合旁白)" },
+    { id: "baidu-4", name: "度丫丫 (情感女声-适合女主角)" },
+    { id: "baidu-0", name: "度小美 (标准女声)" },
+    { id: "baidu-1", name: "度小宇 (标准男声)" },
+    { id: "baidu-5", name: "度小博 (情感男声-专业)" },
+    { id: "baidu-106", name: "度博文 (专业男声-新闻)" },
+    { id: "baidu-110", name: "度小童 (儿童声音)" },
+    { id: "baidu-111", name: "度小萌 (萝莉女声)" },
+    { id: "baidu-5003", name: "度灵儿 (活力女声)" },
+    { id: "baidu-5118", name: "度小乔 (温柔女声)" },
   ],
-  // 其他服务需要实际调用API获取音色列表
-  elevenlabs: [{ id: "pNInz6obpgDQGcFmaJgB", name: "Adam (男声)" }],
-  aliyun: [{ id: "zhixiaobai", name: "知小白 (女声)" }],
-  baidu: [{ id: "0", name: "度小美 (女声)" }],
-  tencent: [{ id: "301006", name: "云小语 (女声)" }],
 };
 
 export default function VoiceConfigPanel({ project, onUpdate }: VoiceConfigPanelProps) {
@@ -309,12 +304,8 @@ interface CharacterVoiceCardProps {
 
 function CharacterVoiceCard({ character, enabledServices, onUpdate, onRemove, icon }: CharacterVoiceCardProps) {
   const TTS_SERVICE_NAMES: Record<TTSService, string> = {
-    elevenlabs: "ElevenLabs",
-    openai: "OpenAI",
-    aliyun: "阿里云",
-    baidu: "百度",
-    tencent: "腾讯云",
     edge: "Edge TTS",
+    baidu: "百度 TTS",
   };
 
   const voices = DEFAULT_VOICES[character.service] || [];

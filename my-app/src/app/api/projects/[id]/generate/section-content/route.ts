@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProject } from "@/lib/db/projects";
-import { generateContent, isAPIKeyConfigured } from "@/lib/agent/clients";
+import { getProject, updateProject } from "@/lib/db/projects";
+import { generateContent, generateJSON, isAPIKeyConfigured } from "@/lib/agent/clients";
 import { buildSectionContentUserPrompt, buildCompleteSystemPrompt } from "@/lib/agent/prompts";
-import type { Chapter, Section, Character, NovelInstance } from "@/types/novel";
+import { buildCharacterDetectionPrompt } from "@/lib/agent/audio-prompts";
+import type { Chapter, Section, Character, NovelInstance, DiscoveredCharacter } from "@/types/novel";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -12,6 +13,7 @@ interface GenerateRequest {
   chapterId: string;
   sectionId: string;
   previousSectionEnding?: string;
+  detectCharacters?: boolean; // 是否自动检测人物
 }
 
 /**
@@ -22,7 +24,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     const body: GenerateRequest = await request.json();
-    const { chapterId, sectionId, previousSectionEnding } = body;
+    const { chapterId, sectionId, previousSectionEnding, detectCharacters = true } = body;
 
     // 检查 API Key
     if (!isAPIKeyConfigured()) {
@@ -129,11 +131,69 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     console.log("Generated content preview:", result.content.substring(0, 200));
 
+    // 检测涉及的人物（如果启用）
+    let detectedCharacters: string[] = [];
+    if (detectCharacters) {
+      try {
+        const settingModel = process.env.SETTING_MODEL || project.settings.settingModel || "gpt-4-turbo";
+        const detectSystemPrompt = buildCompleteSystemPrompt(project, "writing", memoryLevel);
+        const detectUserPrompt = buildCharacterDetectionPrompt(
+          project,
+          `【待分析内容】\n${result.content}`
+        );
+        
+        const detectResult = await generateJSON<{
+          involvedCharacters: { name: string; role: string; action: string }[];
+        }>({
+          model: settingModel,
+          systemPrompt: detectSystemPrompt,
+          userPrompt: detectUserPrompt,
+          maxTokens: 1000,
+          temperature: 0.3,
+        });
+        
+        const characters = detectResult.data.involvedCharacters || [];
+        detectedCharacters = characters.map(c => c.name);
+        
+        // 保存到项目
+        if (characters.length > 0) {
+          const existingCharacters = project.discoveredCharacters || [];
+          
+          for (const detected of characters) {
+            const existingIndex = existingCharacters.findIndex(
+              c => c.name === detected.name
+            );
+            
+            if (existingIndex >= 0) {
+              existingCharacters[existingIndex].mentionCount++;
+            } else {
+              const newChar: DiscoveredCharacter = {
+                id: `discovered_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                name: detected.name,
+                firstAppearChapter: chapter.chapterNumber,
+                firstAppearSection: section.sectionNumber,
+                mentionCount: 1,
+              };
+              existingCharacters.push(newChar);
+            }
+          }
+          
+          await updateProject(id, { discoveredCharacters: existingCharacters });
+        }
+        
+        console.log("Detected characters:", detectedCharacters);
+      } catch (error) {
+        console.warn("Character detection failed:", error);
+        // 不影响主流程
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         content: result.content,
         wordCount: result.content.length,
+        detectedCharacters,
       },
       usage: result.usage,
     });

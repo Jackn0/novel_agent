@@ -22,7 +22,14 @@ export type NovelStage =
   | "continuation_bible"     // 6.3 同步圣经设定
   | "continuation_outline"   // 6.4 生成续写大纲
   | "continuation_chapters"  // 6.5 续写章节规划
-  | "continuation_writing";  // 6.6 续写正文
+  | "continuation_writing"   // 6.6 续写正文
+  // 有声小说阶段
+  | "audiobook_created"           // 7.0 有声小说已创建
+  | "audiobook_content_review"    // 7.1 内容读取确认
+  | "audiobook_voice_config"      // 7.2 语音预配置
+  | "audiobook_simple_generation" // 7.3a 简单语音生成（单一音色）
+  | "audiobook_multi_role_setup"  // 7.3b 多角色配音-章节列表
+  | "audiobook_chapter_dubbing";  // 7.4 章节配音处理
 
 // ==================== 项目结构 ====================
 
@@ -40,13 +47,18 @@ export interface NovelProject {
   
   // 续写相关
   continuation?: ContinuationContext;  // 续写上下文
-  projectType: "original" | "continuation";  // 项目类型：原创/续写
+  projectType: "original" | "continuation" | "audiobook";  // 项目类型：原创/续写/有声小说
   sourceMaterial?: SourceMaterial;  // 续写项目的源材料信息
   
   // 有声小说相关
   voiceConfig?: ProjectVoiceConfig;           // 语音配置
   audioTasks?: AudioGenerationTask[];         // 音频生成任务历史
   discoveredCharacters?: DiscoveredCharacter[]; // 发现的人物列表（自动收集）
+  
+  // 有声小说项目特有字段
+  audiobookSource?: AudiobookSource;          // 有声小说源文件信息
+  audiobookSegments?: AudiobookSegment[];     // 分割后的小节列表
+  multiRoleConfig?: MultiRoleConfig;          // 多角色配音配置
 }
 
 // ==================== 续写功能 ====================
@@ -417,12 +429,8 @@ export interface SectionWritingContext {
  * 支持的TTS服务商
  */
 export type TTSService = 
-  | "elevenlabs" 
-  | "openai" 
-  | "aliyun" 
-  | "baidu" 
-  | "tencent" 
-  | "edge";
+  | "edge"      // 微软 Edge TTS（免费）
+  | "baidu";    // 百度智能云 TTS
 
 /**
  * 音色选项
@@ -466,6 +474,10 @@ export interface ProjectVoiceConfig {
   characters: CharacterVoice[];  // 角色声音配置列表
   defaultService: TTSService;    // 默认TTS服务
   pauseBetweenLines: number;     // 段落间隔(ms，默认500)
+  
+  // Edge-TTS 特有配置
+  edgeTTSMode?: "single" | "multi";  // single=单一音色, multi=多角色
+  edgeSingleVoiceId?: string;        // 单一音色模式下使用的音色ID
 }
 
 /**
@@ -522,4 +534,111 @@ export interface AudioGenerationTask {
   
   createdAt: string;
   updatedAt: string;
+}
+
+
+/**
+ * 有声小说项目 - 源文件信息
+ */
+export interface AudiobookSource {
+  fileName: string;              // 原始文件名
+  fileType: "md" | "txt";        // 文件类型
+  fileSize: number;              // 文件大小（字节）
+  uploadedAt: string;            // 上传时间
+  rawContent: string;            // 原始内容（前1000字符用于预览）
+  totalChars: number;            // 总字符数
+}
+
+/**
+ * 有声小说项目 - 分割后的小节
+ */
+export interface AudiobookSegment {
+  id: string;
+  volumeNumber: number;          // 卷号
+  volumeTitle: string;           // 卷标题（如"第一卷 天地初开"）
+  chapterNumber: number;         // 章节号
+  chapterTitle: string;          // 章节标题（如"第一章 初入江湖"）
+  segmentNumber: number;         // 小节号（在当前章节内的序号）
+  
+  // 内容位置
+  startChar: number;             // 在原文中的起始位置
+  endChar: number;               // 在原文中的结束位置
+  content: string;               // 小节内容（约1000字，不切断自然段）
+  
+  // 状态
+  status: "pending" | "generating" | "completed" | "failed";
+  audioUrl?: string;             // 生成的音频文件路径
+  duration?: number;             // 音频时长（秒）
+  generatedAt?: string;          // 生成时间
+  error?: string;                // 错误信息
+}
+
+/**
+ * 有声小说项目 - 统计信息
+ */
+export interface AudiobookStats {
+  totalVolumes: number;          // 总卷数
+  totalChapters: number;         // 总章节数
+  totalSegments: number;         // 总小节数
+  totalChars: number;            // 总字符数
+  completedSegments: number;     // 已完成配音的小节数
+  totalDuration: number;         // 总音频时长（秒）
+}
+
+
+/**
+ * ==================== 多角色配音功能 ====================
+ */
+
+/**
+ * 多角色配音 - 处理后的段落
+ */
+export interface MultiRoleParagraph {
+  id: string;
+  order: number;                   // 顺序
+  characterId: string;             // 角色ID (narrator/hero/heroine/自定义)
+  characterName: string;           // 角色名称 (旁白/林云/苏雪等)
+  type: "narration" | "dialogue" | "monologue";  // 旁白/对话/独白
+  originalText: string;            // 原文
+  processedText: string;           // 处理后文本（用于TTS，去除引号等）
+  voiceId?: string;                // 分配的音色ID
+}
+
+/**
+ * 多角色配音 - 章节处理结果
+ */
+export interface MultiRoleChapter {
+  volumeNumber: number;
+  chapterNumber: number;
+  chapterTitle: string;
+  paragraphs: MultiRoleParagraph[];
+  status: "pending" | "processing" | "dubbing" | "completed";
+  audioUrl?: string;
+  duration?: number;
+  generatedAt?: string;
+}
+
+/**
+ * 多角色配音 - 人物配置
+ */
+export interface MultiRoleCharacter {
+  id: string;                      // 唯一ID
+  name: string;                    // 人物名称
+  type: "narrator" | "protagonist" | "supporting" | "antagonist" | "other";
+  gender: "male" | "female" | "unknown";
+  description: string;             // 简单描述（AI生成）
+  firstAppearChapter: number;      // 首次出现章节
+  voiceId?: string;                // 分配的音色ID
+  voiceName?: string;              // 音色名称
+  isNew?: boolean;                 // 是否为新人物（需要配置音色）
+}
+
+/**
+ * 多角色配音 - 项目配置
+ */
+export interface MultiRoleConfig {
+  characters: MultiRoleCharacter[];      // 所有人物列表
+  chapters: MultiRoleChapter[];          // 章节处理结果
+  currentChapterIndex: number;           // 当前正在处理的章节
+  defaultNarratorVoiceId?: string;       // 默认旁白音色
 }

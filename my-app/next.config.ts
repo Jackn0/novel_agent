@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
     SETTING_MODEL: process.env.SETTING_MODEL,
     WRITING_MODEL: process.env.WRITING_MODEL,
   },
+  // 静态文件服务 - 允许访问 output 目录的有声小说文件
+  // 音频文件通过 /api/audio-file?path=xxx 访问
 };
 
 export default nextConfig;

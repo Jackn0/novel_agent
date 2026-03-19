@@ -59,6 +59,7 @@ import ContinuationInputStage from "@/components/stages/ContinuationInputStage";
 import ContinuationAnalysisStage from "@/components/stages/ContinuationAnalysisStage";
 import ContinuationBibleStage from "@/components/stages/ContinuationBibleStage";
 import VoiceConfigPanel from "@/components/audio-book/VoiceConfigPanel";
+import AudioGenerationPanel from "@/components/audio-book/AudioGenerationPanel";
 import ContinuationOutlineStage from "@/components/stages/ContinuationOutlineStage";
 import ContinuationChapterStage from "@/components/stages/ContinuationChapterStage";
 import ContinuationWritingStage from "@/components/stages/ContinuationWritingStage";
@@ -83,7 +84,15 @@ export default function ProjectPage() {
       const response = await fetch(`/api/projects/${projectId}`);
       const result = await response.json();
       if (result.success) {
-        setProject(result.data);
+        const projectData = result.data;
+        
+        // 如果是有声小说项目，跳转到专用页面
+        if (projectData.projectType === "audiobook") {
+          router.push(`/audiobook/${projectId}`);
+          return;
+        }
+        
+        setProject(projectData);
       } else {
         setError(result.error || "加载失败");
       }
@@ -263,13 +272,7 @@ export default function ProjectPage() {
           {audioBookSubView === "config" ? (
             <VoiceConfigPanel project={project} onUpdate={updateProject} />
           ) : (
-            <div className="bg-white rounded-lg border p-6">
-              <h2 className="text-lg font-semibold mb-4">音频生成管理</h2>
-              <p className="text-gray-500">此功能正在开发中...</p>
-              <p className="text-sm text-gray-400 mt-2">
-                选择章节和小节，批量生成音频文件
-              </p>
-            </div>
+            <AudioGenerationPanel project={project} />
           )}
         </div>
       );
