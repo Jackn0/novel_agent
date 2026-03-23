@@ -27,7 +27,7 @@
 将小说转换为专业有声书：
 
 - **多角色配音**：AI 自动识别角色，为旁白/角色分配不同音色
-- ** TTS 引擎支持**：Edge TTS（免费）、百度 TTS （免费部分5w次/天，足以满足个人创作者）
+- **TTS 引擎支持**：Edge TTS（免费）、百度 TTS （免费部分5w次/天，足以满足个人创作者）
 - **27+ 精选音色**：男声/女声/童声/方言，满足各类小说需求
 - **智能音频合并**：自动处理段落衔接，输出高质量 MP3
 
@@ -44,7 +44,26 @@
 ### 1. 环境准备
 - **Node.js** 18+
 - **npm** 或 **yarn**
+- **Python** 3.8+（Edge TTS 需要）
 - **FFmpeg**（有声书功能需要）
+
+#### 安装配音依赖
+
+```bash
+# 安装 Edge TTS（免费 TTS 引擎）
+pip install edge-tts
+
+# 安装 FFmpeg
+# macOS
+brew install ffmpeg
+
+# Ubuntu/Debian
+sudo apt-get install ffmpeg
+
+# Windows
+# 下载地址: https://ffmpeg.org/download.html
+# 下载后解压并将 bin 目录添加到系统 PATH 环境变量
+```
 
 ### 2. 安装启动
 
